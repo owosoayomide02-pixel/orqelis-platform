@@ -5,11 +5,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ProjectDiscovery tools (Hunter Option A — in-process scans)
-RUN curl -sSfL https://raw.githubusercontent.com/projectdiscovery/subfinder/main/install.sh | sh -s -- -b /usr/local/bin \
-    && curl -sSfL https://raw.githubusercontent.com/projectdiscovery/httpx/main/install.sh | sh -s -- -b /usr/local/bin \
-    && curl -sSfL https://raw.githubusercontent.com/projectdiscovery/nuclei/main/install.sh | sh -s -- -b /usr/local/bin
+ARG SUBFINDER_VERSION=2.6.7
+ARG HTTPX_VERSION=1.6.9
+ARG NUCLEI_VERSION=3.3.7
+RUN set -eux; \
+    for spec in "subfinder:${SUBFINDER_VERSION}" "httpx:${HTTPX_VERSION}" "nuclei:${NUCLEI_VERSION}"; do \
+        tool="${spec%%:*}"; ver="${spec##*:}"; \
+        curl -sSfL -o "/tmp/${tool}.zip" "https://github.com/projectdiscovery/${tool}/releases/download/v${ver}/${tool}_${ver}_linux_amd64.zip"; \
+        unzip -o "/tmp/${tool}.zip" "${tool}" -d /usr/local/bin; \
+        chmod +x "/usr/local/bin/${tool}"; \
+        rm -f "/tmp/${tool}.zip"; \
+    done; \
+    subfinder -version; httpx -version; nuclei -version
 
-RUN nuclei -update-templates
+RUN nuclei -update-templates || echo "nuclei template update failed; templates will be fetched at runtime"
+
 
 WORKDIR /app
 COPY packages/security /app/packages/security
